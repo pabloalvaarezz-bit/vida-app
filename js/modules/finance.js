@@ -1,6 +1,7 @@
 import { store } from "../storage.js";
-import { h, ICONS, openSheet, closeSheet, toast, emptyState } from "../dom.js";
+import { h, ICONS, openSheet, closeSheet, toast, emptyState, decimalInput, parseDecimal } from "../dom.js";
 import { todayStr, fromKey, shortDateLabel } from "../dates.js";
+import { groupedBarChart } from "../charts.js";
 
 const CAT_EMOJIS = ["🍔", "🚗", "🏠", "🎬", "🛒", "💊", "👕", "✈️", "📱", "🎓", "🐶", "🎁", "💰", "💼", "📈"];
 
@@ -35,6 +36,37 @@ export function renderFinance() {
       ]),
     ])
   );
+
+  // ---- Gráfica: evolución de los últimos 6 meses ----
+  container.appendChild(h("div", { class: "section-label" }, "Evolución mensual"));
+  container.appendChild(monthlyEvolutionCard(data));
+
+  // ---- Gráfica: gasto por categoría este mes ----
+  const expenseByCat = data.finance.categories
+    .filter((c) => c.type === "expense")
+    .map((c) => ({ cat: c, spent: txThisMonth.filter((t) => t.categoryId === c.id && t.type === "expense").reduce((s, t) => s + Number(t.amount), 0) }))
+    .filter((x) => x.spent > 0)
+    .sort((a, b) => b.spent - a.spent);
+
+  if (expenseByCat.length > 0) {
+    container.appendChild(h("div", { class: "section-label" }, "Gasto por categoría · este mes"));
+    const maxSpent = expenseByCat[0].spent;
+    container.appendChild(
+      h("div", { class: "card" },
+        expenseByCat.map(({ cat, spent }) =>
+          h("div", { style: "padding:8px 0" }, [
+            h("div", { class: "flex-between", style: "margin-bottom:6px" }, [
+              h("span", { style: "font-size:13.5px" }, `${cat.emoji} ${cat.name}`),
+              h("span", { class: "mono", style: "font-size:12.5px; color:var(--text-dim)" }, `${spent.toFixed(0)}€`),
+            ]),
+            h("div", { class: "progress-track" }, [
+              h("div", { class: "progress-fill bad", style: `width:${(spent / maxSpent) * 100}%` }),
+            ]),
+          ])
+        )
+      )
+    );
+  }
 
   // ---- Presupuestos por categoría ----
   const budgetCats = data.finance.categories.filter((c) => c.type === "expense" && c.budget > 0);
@@ -112,6 +144,39 @@ export function renderFinance() {
   return container;
 }
 
+const MONTH_SHORT = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
+function monthlyEvolutionCard(data) {
+  const months = [];
+  const now = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ key: monthKey(d), label: MONTH_SHORT[d.getMonth()] });
+  }
+  const groups = months.map((m) => {
+    const tx = data.finance.transactions.filter((t) => t.date.startsWith(m.key));
+    const income = tx.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
+    const expense = tx.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
+    return { label: m.label, values: [income, expense] };
+  });
+
+  const hasAnyData = groups.some((g) => g.values[0] > 0 || g.values[1] > 0);
+  if (!hasAnyData) {
+    return h("div", { class: "card" }, [
+      h("p", { class: "text-faint", style: "font-size:12.5px; text-align:center; padding:10px 0" }, "Aún no hay suficientes movimientos para dibujar la evolución."),
+    ]);
+  }
+
+  const chart = groupedBarChart({ groups, colors: ["#38d68c", "#ff5d5d"], height: 150 });
+  return h("div", { class: "card" }, [
+    chart,
+    h("div", { style: "display:flex; gap:14px; justify-content:center; margin-top:10px" }, [
+      h("div", { style: "display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-dim)" }, [h("span", { style: "width:8px;height:8px;border-radius:3px;background:#38d68c" }), h("span", {}, "Ingresos")]),
+      h("div", { style: "display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-dim)" }, [h("span", { style: "width:8px;height:8px;border-radius:3px;background:#ff5d5d" }), h("span", {}, "Gastos")]),
+    ]),
+  ]);
+}
+
 function removeCategory(id) {
   const data = store.get();
   data.finance.categories = data.finance.categories.filter((c) => c.id !== id);
@@ -123,7 +188,7 @@ function openCategoryForm() {
   let emoji = CAT_EMOJIS[0];
   let type = "expense";
   const nameInput = h("input", { type: "text", placeholder: "Ej: Comida" });
-  const budgetInput = h("input", { type: "number", inputmode: "numeric", placeholder: "300 (opcional)" });
+  const budgetInput = integerInput({ placeholder: "300 (opcional)" });
   const emojiGrid = h("div", { class: "emoji-grid" },
     CAT_EMOJIS.map((e) => h("button", {
       class: `emoji-opt ${e === emoji ? "active" : ""}`,
@@ -149,7 +214,7 @@ function openCategoryForm() {
         const name = nameInput.value.trim();
         if (!name) { toast("Ponle un nombre"); return; }
         const data = store.get();
-        data.finance.categories.push({ id: store.uid(), name, emoji, type, budget: type === "expense" ? Number(budgetInput.value) || 0 : 0 });
+        data.finance.categories.push({ id: store.uid(), name, emoji, type, budget: type === "expense" ? (parseInt(budgetInput.value, 10) || 0) : 0 });
         store.save(); closeSheet(); rerender(); toast("Categoría creada");
       },
     }, "Crear"),
@@ -161,7 +226,7 @@ function openTxForm(tx) {
   const isEdit = !!tx;
   const data = store.get();
   let type = tx?.type || "expense";
-  const amountInput = h("input", { type: "number", inputmode: "decimal", placeholder: "0.00", step: "0.01", value: tx?.amount || "" });
+  const amountInput = decimalInput({ placeholder: "0,00", value: tx?.amount || "" });
   const dateInput = h("input", { type: "date", value: tx?.date || todayStr(), max: todayStr() });
   const noteInput = h("input", { type: "text", placeholder: "Nota (opcional)", value: tx?.note || "" });
 
@@ -199,8 +264,8 @@ function openTxForm(tx) {
       h("button", {
         class: "btn primary block",
         onclick: () => {
-          const amount = Number(amountInput.value);
-          if (!amount || amount <= 0) { toast("Indica un importe"); return; }
+          const amount = parseDecimal(amountInput.value);
+          if (!amount || isNaN(amount) || amount <= 0) { toast("Indica un importe"); return; }
           const payload = { type, amount, date: dateInput.value, note: noteInput.value.trim(), categoryId: hasCategories ? catSelect.value : null };
           if (isEdit) Object.assign(tx, payload);
           else data.finance.transactions.push({ id: store.uid(), ...payload });

@@ -1,5 +1,5 @@
 import { store } from "../storage.js";
-import { h, ICONS, toast } from "../dom.js";
+import { h, ICONS, toast, decimalInput, parseDecimal, integerInput } from "../dom.js";
 
 export function renderSettings() {
   const data = store.get();
@@ -8,14 +8,20 @@ export function renderSettings() {
 
   // ---- Objetivos ----
   container.appendChild(h("div", { class: "section-label" }, "Objetivos diarios"));
-  const waterInput = h("input", { type: "number", value: data.settings.waterGoal || 8, style: "width:60px; text-align:center" });
-  const sleepInput = h("input", { type: "number", value: data.settings.sleepGoal || 8, step: "0.5", style: "width:60px; text-align:center" });
+  const waterGoalInput = decimalInput({ value: ((data.settings.waterGoal || 2000) / 1000).toString(), style: "width:60px; text-align:center" });
+  const glassInput = integerInput({ value: data.settings.glassSize || 250, style: "width:60px; text-align:center" });
+  const sleepInput = decimalInput({ value: (data.settings.sleepGoal || 8).toString(), style: "width:60px; text-align:center" });
   container.appendChild(
     h("div", { class: "card" }, [
       h("div", { class: "row" }, [
         h("div", { class: "row-icon" }, "💧"),
-        h("div", { class: "row-body" }, [h("div", { class: "row-title" }, "Vasos de agua al día")]),
-        waterInput,
+        h("div", { class: "row-body" }, [h("div", { class: "row-title" }, "Objetivo de agua (litros)")]),
+        waterGoalInput,
+      ]),
+      h("div", { class: "row" }, [
+        h("div", { class: "row-icon" }, "🥤"),
+        h("div", { class: "row-body" }, [h("div", { class: "row-title" }, "mL por vaso")]),
+        glassInput,
       ]),
       h("div", { class: "row" }, [
         h("div", { class: "row-icon" }, "🌙"),
@@ -25,8 +31,12 @@ export function renderSettings() {
       h("button", {
         class: "btn primary block", style: "margin-top:12px",
         onclick: () => {
-          data.settings.waterGoal = Number(waterInput.value) || 8;
-          data.settings.sleepGoal = Number(sleepInput.value) || 8;
+          const liters = parseDecimal(waterGoalInput.value);
+          const glass = parseInt(glassInput.value, 10);
+          const sleep = parseDecimal(sleepInput.value);
+          data.settings.waterGoal = liters && !isNaN(liters) ? Math.round(liters * 1000) : 2000;
+          data.settings.glassSize = glass || 250;
+          data.settings.sleepGoal = sleep && !isNaN(sleep) ? sleep : 8;
           store.save();
           toast("Objetivos guardados");
         },

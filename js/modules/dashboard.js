@@ -57,12 +57,12 @@ export function renderDashboard(goTo) {
   }));
 
   const waterToday = data.health.water[today] || 0;
-  const waterGoal = data.settings.waterGoal || 8;
+  const waterGoal = data.settings.waterGoal || 2000;
   cards.appendChild(summaryCard({
     icon: ICONS.health,
     label: "Agua",
-    value: `${waterToday}/${waterGoal}`,
-    sub: "vasos",
+    value: `${(waterToday / 1000).toFixed(1)}L`,
+    sub: `de ${(waterGoal / 1000).toFixed(1)}L`,
     status: waterToday >= waterGoal ? "good" : waterToday === 0 ? "bad" : "warn",
     onclick: () => goTo("health"),
   }));

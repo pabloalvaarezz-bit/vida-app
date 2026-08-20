@@ -1,12 +1,13 @@
 import { store } from "../storage.js";
-import { h, ICONS, openSheet, closeSheet, toast, emptyState } from "../dom.js";
-import { todayStr, fromKey, shortDateLabel, daysAgoKey } from "../dates.js";
+import { h, ICONS, openSheet, closeSheet, toast, emptyState, decimalInput, parseDecimal, integerInput } from "../dom.js";
+import { todayStr, fromKey, shortDateLabel, daysAgoKey, toKey, addDays } from "../dates.js";
+import { stackedBarChart } from "../charts.js";
 
 const TYPES = ["Fuerza", "Cardio", "HIIT", "Yoga", "Running", "Ciclismo", "Natación", "Movilidad", "Otro"];
 const INTENSITY = [
-  { key: "baja", label: "Baja", cls: "good" },
-  { key: "media", label: "Media", cls: "warn" },
-  { key: "alta", label: "Alta", cls: "bad" },
+  { key: "baja", label: "Baja", cls: "good", color: "#38d68c" },
+  { key: "media", label: "Media", cls: "warn", color: "#ffb648" },
+  { key: "alta", label: "Alta", cls: "bad", color: "#ff5d5d" },
 ];
 
 export function renderWorkouts() {
@@ -40,6 +41,12 @@ export function renderWorkouts() {
     ])
   );
 
+  // ---- Gráfica de intensidad (estilo "tiempo de uso" pero con esfuerzo) ----
+  if (data.workouts.length > 0) {
+    container.appendChild(h("div", { class: "section-label" }, "Intensidad · últimos 14 días"));
+    container.appendChild(intensityChartCard(data));
+  }
+
   const sorted = [...data.workouts].sort((a, b) => (a.date < b.date ? 1 : -1));
 
   if (sorted.length === 0) {
@@ -49,12 +56,15 @@ export function renderWorkouts() {
     const card = h("div", { class: "card" });
     sorted.slice(0, 60).forEach((w) => {
       const intensity = INTENSITY.find((i) => i.key === w.intensity) || INTENSITY[1];
+      const extras = [];
+      if (w.avgHr) extras.push(`❤️ ${w.avgHr} lpm`);
+      if (w.distance) extras.push(`📍 ${w.distance} km`);
       card.appendChild(
         h("div", { class: "row", onclick: () => openWorkoutForm(w) }, [
           h("div", { class: "row-icon" }, typeEmoji(w.type)),
           h("div", { class: "row-body" }, [
             h("div", { class: "row-title" }, w.type),
-            h("div", { class: "row-sub" }, `${shortDateLabel(fromKey(w.date))} · ${w.duration} min`),
+            h("div", { class: "row-sub" }, [`${shortDateLabel(fromKey(w.date))} · ${w.duration} min`, ...extras].join(" · ")),
           ]),
           h("span", { class: `pill ${intensity.cls}` }, intensity.label),
         ])
@@ -64,6 +74,30 @@ export function renderWorkouts() {
   }
 
   return container;
+}
+
+function intensityChartCard(data) {
+  const days = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = addDays(new Date(), -i);
+    days.push(toKey(d));
+  }
+  const dowLetters = ["D", "L", "M", "X", "J", "V", "S"];
+  const groups = days.map((key) => {
+    const workoutsThatDay = data.workouts.filter((w) => w.date === key);
+    const values = INTENSITY.map((i) => workoutsThatDay.filter((w) => w.intensity === i.key).reduce((s, w) => s + Number(w.duration || 0), 0));
+    return { label: dowLetters[fromKey(key).getDay()], values };
+  });
+  const chart = stackedBarChart({ groups, colors: INTENSITY.map((i) => i.color), height: 140 });
+  return h("div", { class: "card" }, [
+    chart,
+    h("div", { style: "display:flex; gap:14px; justify-content:center; margin-top:10px" },
+      INTENSITY.map((i) => h("div", { style: "display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-dim)" }, [
+        h("span", { style: `width:8px;height:8px;border-radius:3px;background:${i.color}` }),
+        h("span", {}, i.label),
+      ]))
+    ),
+  ]);
 }
 
 function typeEmoji(type) {
@@ -80,7 +114,9 @@ function openWorkoutForm(workout) {
   let intensity = workout?.intensity || "media";
 
   const dateInput = h("input", { type: "date", value: workout?.date || todayStr(), max: todayStr() });
-  const durationInput = h("input", { type: "number", inputmode: "numeric", placeholder: "45", value: workout?.duration || "" });
+  const durationInput = integerInput({ placeholder: "45", value: workout?.duration || "" });
+  const hrInput = integerInput({ placeholder: "Ej: 142 (opcional)", value: workout?.avgHr || "" });
+  const distanceInput = decimalInput({ placeholder: "Ej: 12,5 (opcional)", value: workout?.distance || "" });
   const notesInput = h("textarea", { placeholder: "Notas (opcional)" }, workout?.notes || "");
 
   const typeChips = h("div", { class: "chip-select" },
@@ -112,6 +148,10 @@ function openWorkoutForm(workout) {
       h("div", { class: "field" }, [h("label", {}, "Duración (min)"), durationInput]),
     ]),
     h("div", { class: "field" }, [h("label", {}, "Intensidad"), intensityChips]),
+    h("div", { class: "field-row" }, [
+      h("div", { class: "field" }, [h("label", {}, "FC media (lpm)"), hrInput]),
+      h("div", { class: "field" }, [h("label", {}, "Distancia (km)"), distanceInput]),
+    ]),
     h("div", { class: "field" }, [h("label", {}, "Notas"), notesInput]),
     h("div", { style: "display:flex; gap:10px" }, [
       isEdit ? h("button", {
@@ -126,14 +166,18 @@ function openWorkoutForm(workout) {
       h("button", {
         class: "btn primary block",
         onclick: () => {
-          const duration = Number(durationInput.value);
+          const duration = parseInt(durationInput.value, 10);
           if (!duration || duration <= 0) { toast("Indica la duración"); return; }
+          const avgHrRaw = hrInput.value ? parseInt(hrInput.value, 10) : null;
+          const avgHr = avgHrRaw && !isNaN(avgHrRaw) ? avgHrRaw : null;
+          const distance = distanceInput.value ? parseDecimal(distanceInput.value) : null;
           const data = store.get();
           if (isEdit) {
-            Object.assign(workout, { type, date: dateInput.value, duration, intensity, notes: notesInput.value.trim() });
+            Object.assign(workout, { type, date: dateInput.value, duration, intensity, notes: notesInput.value.trim(), avgHr, distance: isNaN(distance) ? null : distance });
           } else {
             data.workouts.push({
               id: store.uid(), type, date: dateInput.value, duration, intensity, notes: notesInput.value.trim(),
+              avgHr, distance: isNaN(distance) ? null : distance,
             });
           }
           store.save(); closeSheet(); rerender();

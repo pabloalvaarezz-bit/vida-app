@@ -1,5 +1,5 @@
 import { store } from "../storage.js";
-import { h, ICONS, openSheet, closeSheet, toast, emptyState } from "../dom.js";
+import { h, ICONS, openSheet, closeSheet, toast, emptyState, decimalInput, parseDecimal } from "../dom.js";
 import { todayStr, fromKey, shortDateLabel } from "../dates.js";
 
 const MOODS = [
@@ -18,7 +18,8 @@ export function renderHealth() {
   container.appendChild(h("h1", { class: "screen-title" }, "Salud"));
 
   // ---- Agua ----
-  const waterGoal = data.settings.waterGoal || 8;
+  const waterGoal = data.settings.waterGoal || 2000;
+  const glassSize = data.settings.glassSize || 250;
   const waterToday = data.health.water[today] || 0;
   const waterPct = Math.min(100, (waterToday / waterGoal) * 100);
   container.appendChild(
@@ -26,11 +27,12 @@ export function renderHealth() {
       h("div", { class: "card-row" }, [
         h("div", {}, [
           h("div", { class: "flex-between", style: "gap:8px" }, [icon(ICONS.droplet, "16"), h("span", { style: "font-size:13px; color:var(--text-dim)" }, "Agua")]),
-          h("div", { class: "stat-value mono", style: "margin-top:6px" }, `${waterToday} / ${waterGoal} vasos`),
+          h("div", { class: "stat-value mono", style: "margin-top:6px" }, `${(waterToday / 1000).toFixed(2)} / ${(waterGoal / 1000).toFixed(1)} L`),
+          h("div", { class: "text-faint", style: "font-size:11px; margin-top:2px" }, `${waterToday} ml · vaso de ${glassSize} ml`),
         ]),
         h("div", { style: "display:flex; gap:8px" }, [
-          h("button", { class: "icon-btn", onclick: () => setWater(Math.max(0, waterToday - 1)) }, "−"),
-          h("button", { class: "icon-btn", onclick: () => setWater(waterToday + 1) }, "+"),
+          h("button", { class: "icon-btn", onclick: () => setWater(Math.max(0, waterToday - glassSize)) }, "−"),
+          h("button", { class: "icon-btn", onclick: () => setWater(waterToday + glassSize) }, "+"),
         ]),
       ]),
       h("div", { class: "progress-track", style: "margin-top:10px" }, [
@@ -165,7 +167,7 @@ function weightChart(entries) {
 
 function openWeightForm() {
   const dateInput = h("input", { type: "date", value: todayStr(), max: todayStr() });
-  const kgInput = h("input", { type: "number", inputmode: "decimal", placeholder: "72.5", step: "0.1" });
+  const kgInput = decimalInput({ placeholder: "72,5" });
   const content = h("div", {}, [
     h("div", { class: "sheet-header" }, [h("h2", {}, "Registrar peso"), h("button", { class: "icon-btn", onclick: closeSheet }, icon(ICONS.close))]),
     h("div", { class: "field-row" }, [
@@ -175,8 +177,8 @@ function openWeightForm() {
     h("button", {
       class: "btn primary block",
       onclick: () => {
-        const kg = Number(kgInput.value);
-        if (!kg) { toast("Indica el peso"); return; }
+        const kg = parseDecimal(kgInput.value);
+        if (!kg || isNaN(kg)) { toast("Indica el peso"); return; }
         const data = store.get();
         data.health.weight = data.health.weight.filter((e) => e.date !== dateInput.value);
         data.health.weight.push({ id: store.uid(), date: dateInput.value, kg });
@@ -189,7 +191,7 @@ function openWeightForm() {
 
 function openSleepForm() {
   const dateInput = h("input", { type: "date", value: todayStr(), max: todayStr() });
-  const hoursInput = h("input", { type: "number", inputmode: "decimal", placeholder: "7.5", step: "0.5" });
+  const hoursInput = decimalInput({ placeholder: "7,5" });
   let quality = 3;
   const qualityChips = h("div", { class: "chip-select" },
     [1, 2, 3, 4, 5].map((q) =>
@@ -209,8 +211,8 @@ function openSleepForm() {
     h("button", {
       class: "btn primary block",
       onclick: () => {
-        const hours = Number(hoursInput.value);
-        if (!hours) { toast("Indica las horas"); return; }
+        const hours = parseDecimal(hoursInput.value);
+        if (!hours || isNaN(hours)) { toast("Indica las horas"); return; }
         const data = store.get();
         data.health.sleep = data.health.sleep.filter((e) => e.date !== dateInput.value);
         data.health.sleep.push({ id: store.uid(), date: dateInput.value, hours, quality });

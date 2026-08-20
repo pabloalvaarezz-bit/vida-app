@@ -34,7 +34,8 @@ function defaultData() {
       transactions: [], // { id, date, amount, type, categoryId, note }
     },
     settings: {
-      waterGoal: 8,
+      waterGoal: 2000,   // en mL (2 litros)
+      glassSize: 250,    // mL por vaso
       sleepGoal: 8,
       onboarded: false,
     },
@@ -55,12 +56,30 @@ function load() {
     const parsed = JSON.parse(raw);
     // merge con default para tolerar campos nuevos en futuras versiones
     _cache = deepMerge(defaultData(), parsed);
+    migrateWaterToML(_cache);
     return _cache;
   } catch (e) {
     console.error("Error leyendo datos, se crea set nuevo", e);
     _cache = defaultData();
     return _cache;
   }
+}
+
+// v1 guardaba el agua en "vasos" (enteros pequeños, típicamente 0-15).
+// v2 la guarda en mL. Si detectamos valores claramente antiguos, los migramos
+// una sola vez multiplicando por el tamaño de vaso configurado.
+function migrateWaterToML(data) {
+  if (data.settings.waterMigratedV2) return;
+  const glass = data.settings.glassSize || 250;
+  for (const key in data.health.water) {
+    const v = data.health.water[key];
+    if (v > 0 && v <= 30) data.health.water[key] = v * glass;
+  }
+  if (data.settings.waterGoal && data.settings.waterGoal <= 30) {
+    data.settings.waterGoal = data.settings.waterGoal * glass;
+  }
+  data.settings.waterMigratedV2 = true;
+  save();
 }
 
 function deepMerge(base, incoming) {

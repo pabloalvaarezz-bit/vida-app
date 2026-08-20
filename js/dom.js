@@ -53,6 +53,42 @@ export function closeSheet() {
   document.body.style.overflow = "";
 }
 
+// iOS con teclado en español: el teclado numérico solo ofrece coma,
+// pero <input type="number"> exige un punto internamente y rechaza
+// silenciosamente la coma (el campo se queda vacío). Solución: campos
+// de texto libre con teclado decimal, y parseamos nosotros el valor.
+export function decimalInput(attrs = {}) {
+  return h("input", {
+    type: "text",
+    inputmode: "decimal",
+    pattern: "[0-9]*[.,]?[0-9]*",
+    autocomplete: "off",
+    autocorrect: "off",
+    ...attrs,
+  });
+}
+
+// Para campos numéricos enteros (sin decimales): también usamos texto +
+// teclado numérico en vez de type="number", por consistencia y para
+// evitar cualquier rareza de validación nativa en iOS.
+export function integerInput(attrs = {}) {
+  return h("input", {
+    type: "text",
+    inputmode: "numeric",
+    pattern: "[0-9]*",
+    autocomplete: "off",
+    autocorrect: "off",
+    ...attrs,
+  });
+}
+
+export function parseDecimal(str) {
+  if (str === null || str === undefined) return NaN;
+  const cleaned = String(str).trim().replace(",", ".");
+  if (cleaned === "") return NaN;
+  return Number(cleaned);
+}
+
 export function emptyState(text, icon) {
   const wrap = h("div", { class: "empty" });
   const iconWrap = document.createElement("div");

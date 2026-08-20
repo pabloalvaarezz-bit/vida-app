@@ -26,6 +26,7 @@
 }
 .cal-cell {
   aspect-ratio: 1;
+  width: 100%;
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -34,6 +35,9 @@
   font-size: 11px;
   position: relative;
   border: 1px solid transparent;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
 }
 .cal-cell.empty { visibility: hidden; }
 .cal-cell.future { color: var(--text-faint); }

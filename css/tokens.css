@@ -64,6 +64,23 @@ h1, h2, h3 { font-family: var(--f-display); margin: 0; letter-spacing: -0.02em; 
 p { margin: 0; }
 button { cursor: pointer; }
 
+/* Reset agresivo de <button>: iOS Safari aplica su propio "appearance"
+   por defecto (padding, bordes, fondo) que rompe layouts tipo grid
+   como el calendario. Sin esto, las celdas del heatmap salían
+   descuadradas en iPhone. */
+button {
+  -webkit-appearance: none;
+  appearance: none;
+  background: none;
+  border: none;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  line-height: normal;
+  box-sizing: border-box;
+}
+
 .mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
 
 ::-webkit-scrollbar { width: 0; height: 0; }
