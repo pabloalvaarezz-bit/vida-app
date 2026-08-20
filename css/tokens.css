@@ -1,0 +1,78 @@
+/* ============================================
+   VIDA/OS — Design tokens
+   Base: negro cálido + blanco hueso.
+   Semántica: verde = bien, rojo = mal, ámbar = pendiente.
+   ============================================ */
+:root {
+  /* Superficies */
+  --bg: #0b0b0c;
+  --surface: #151517;
+  --surface-2: #1d1d20;
+  --surface-3: #26262a;
+  --border: #2a2a2f;
+  --border-soft: #1f1f23;
+
+  /* Texto */
+  --text: #f3f2ee;
+  --text-dim: #9a99a1;
+  --text-faint: #616167;
+
+  /* Semántica */
+  --green: #38d68c;
+  --green-dim: rgba(56, 214, 140, 0.14);
+  --green-line: rgba(56, 214, 140, 0.35);
+
+  --red: #ff5d5d;
+  --red-dim: rgba(255, 93, 93, 0.14);
+  --red-line: rgba(255, 93, 93, 0.35);
+
+  --amber: #ffb648;
+  --amber-dim: rgba(255, 182, 72, 0.14);
+  --amber-line: rgba(255, 182, 72, 0.35);
+
+  /* Tipografía */
+  --f-display: "Space Grotesk", "Inter", sans-serif;
+  --f-body: "Inter", -apple-system, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Layout */
+  --radius-s: 10px;
+  --radius-m: 16px;
+  --radius-l: 22px;
+  --tabbar-h: 76px;
+  --header-h: 64px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--f-body);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+input, textarea, select, button { font-family: inherit; }
+h1, h2, h3 { font-family: var(--f-display); margin: 0; letter-spacing: -0.02em; }
+p { margin: 0; }
+button { cursor: pointer; }
+
+.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+::-webkit-scrollbar { width: 0; height: 0; }
+
+:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
