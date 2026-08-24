@@ -1,5 +1,5 @@
 // VIDA/OS — service worker: cachea el shell de la app para uso offline.
-const CACHE_NAME = "vidaos-cache-v2";
+const CACHE_NAME = "vidaos-cache-v4";
 const ASSETS = [
   "./",
   "./index.html",

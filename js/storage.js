@@ -12,6 +12,12 @@ function uid() {
 function defaultData() {
   return {
     meta: { version: 1, createdAt: new Date().toISOString(), name: "" },
+    todos: [
+      // { id, title, done, createdAt }
+    ],
+    diary: [
+      // registro cronológico del día: { id, date, time, text, createdAt }
+    ],
     habits: [
       // { id, name, emoji, freq: 'daily' | 'weekly', days: [0..6] (weekly), createdAt, archived, logs: { 'YYYY-MM-DD': true } }
     ],
@@ -30,8 +36,10 @@ function defaultData() {
       sessions: [], // { id, subjectId, date, minutes }
     },
     finance: {
-      categories: [], // { id, name, emoji, budget, type: 'expense'|'income' }
-      transactions: [], // { id, date, amount, type, categoryId, note }
+      categories: [], // legado v1, ya no se usa en la interfaz — se mantiene solo por compatibilidad
+      transactions: [], // { id, date, amount, type, note }
+      upcoming: [],     // gastos futuros: { id, title, amount, dueDate, note, createdAt }
+      savings: [],      // huchas: { id, name, emoji, target, saved, createdAt }
     },
     settings: {
       waterGoal: 2000,   // en mL (2 litros)

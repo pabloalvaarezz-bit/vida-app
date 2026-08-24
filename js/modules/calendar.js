@@ -87,6 +87,7 @@ function openDayDetail(key) {
   const weight = data.health.weight.find((w) => w.date === key);
   const water = data.health.water[key];
   const mood = data.health.mood[key];
+  const diaryEntries = data.diary.filter((e) => e.date === key).sort((a, b) => (a.time < b.time ? -1 : 1));
 
   const scoreLabel = score === null ? "Sin datos suficientes" : score > 0.15 ? "Buen día" : score < -0.15 ? "Día flojo" : "Día neutro";
   const scoreColor = score === null ? "var(--text-dim)" : score > 0.15 ? "var(--green)" : score < -0.15 ? "var(--red)" : "var(--amber)";
@@ -112,8 +113,15 @@ function openDayDetail(key) {
       h("h3", {}, "Salud"),
       sleep ? h("div", { class: "day-detail-item" }, [h("span", {}, "🌙"), h("span", {}, `${sleep.hours}h de sueño, calidad ${sleep.quality}/5`)]) : null,
       weight ? h("div", { class: "day-detail-item" }, [h("span", {}, "⚖️"), h("span", {}, `${weight.kg} kg`)]) : null,
-      water ? h("div", { class: "day-detail-item" }, [h("span", {}, "💧"), h("span", {}, `${water} vasos de agua`)]) : null,
+      water ? h("div", { class: "day-detail-item" }, [h("span", {}, "💧"), h("span", {}, `${(water / 1000).toFixed(2)} L de agua`)]) : null,
       mood ? h("div", { class: "day-detail-item" }, [h("span", {}, "🙂"), h("span", {}, `Ánimo: ${mood}/5`)]) : null,
+    ]) : null,
+
+    diaryEntries.length > 0 ? h("div", { class: "day-detail-section" }, [
+      h("h3", {}, "Diario"),
+      ...diaryEntries.map((e) => h("div", { class: "day-detail-item" }, [
+        h("span", { class: "mono", style: "color:var(--text-faint); font-size:11.5px" }, e.time), h("span", {}, e.text),
+      ])),
     ]) : null,
 
     txs.length > 0 ? h("div", { class: "day-detail-section" }, [
@@ -124,7 +132,7 @@ function openDayDetail(key) {
       ])),
     ]) : null,
 
-    (habitsScheduled.length === 0 && workouts.length === 0 && txs.length === 0 && !sleep && !weight && !water && !mood)
+    (habitsScheduled.length === 0 && workouts.length === 0 && txs.length === 0 && diaryEntries.length === 0 && !sleep && !weight && !water && !mood)
       ? h("p", { class: "text-faint", style: "font-size:13px" }, "No hay registros para este día.")
       : null,
   ]);

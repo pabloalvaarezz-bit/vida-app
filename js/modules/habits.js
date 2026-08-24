@@ -88,6 +88,15 @@ export function renderHabits() {
     container.appendChild(card);
   }
 
+  // ---- Diario de hoy: registro cronológico de lo que haces ----
+  container.appendChild(
+    h("div", { class: "section-label" }, [
+      "Diario de hoy",
+      h("button", { class: "btn sm", onclick: () => openDiaryForm() }, "+ Añadir"),
+    ])
+  );
+  container.appendChild(renderDiary(data, today));
+
   return container;
 }
 
@@ -208,4 +217,72 @@ function htmlIcon(svg) {
 }
 function rerender() {
   window.dispatchEvent(new CustomEvent("vida:rerender"));
+}
+
+// ================= Diario de hoy =================
+// Un registro libre y cronológico, tipo "9:00 desayuno, 9:30 curro..."
+// Complementa a los hábitos (que son objetivos fijos) con lo que
+// realmente vas haciendo a lo largo del día.
+
+function renderDiary(data, today) {
+  const entries = data.diary.filter((e) => e.date === today).sort((a, b) => (a.time < b.time ? -1 : 1));
+  if (entries.length === 0) {
+    return emptyState("Aún no has apuntado nada hoy.\nEj: \"9:00 desayuno café con tostadas\".", ICONS.calendar);
+  }
+  const card = h("div", { class: "card" });
+  entries.forEach((e) => {
+    card.appendChild(
+      h("div", { class: "row", onclick: () => openDiaryForm(e) }, [
+        h("div", { class: "mono", style: "width:44px; flex-shrink:0; font-size:12.5px; color:var(--text-dim)" }, e.time),
+        h("div", { class: "row-body" }, [h("div", { class: "row-title" }, e.text)]),
+      ])
+    );
+  });
+  return card;
+}
+
+function openDiaryForm(entry) {
+  const isEdit = !!entry;
+  const now = new Date();
+  const defaultTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const timeInput = h("input", { type: "time", value: entry?.time || defaultTime });
+  const textInput = h("input", { type: "text", placeholder: "Ej: Desayuno café con tostadas", value: entry?.text || "" });
+
+  const content = h("div", {}, [
+    h("div", { class: "sheet-header" }, [
+      h("h2", {}, isEdit ? "Editar registro" : "Nuevo registro"),
+      h("button", { class: "icon-btn", onclick: closeSheet }, htmlIcon(ICONS.close)),
+    ]),
+    h("div", { class: "field-row" }, [
+      h("div", { class: "field", style: "flex:0 0 110px" }, [h("label", {}, "Hora"), timeInput]),
+      h("div", { class: "field" }, [h("label", {}, "Qué has hecho"), textInput]),
+    ]),
+    h("div", { style: "display:flex; gap:10px" }, [
+      isEdit ? h("button", {
+        class: "btn danger",
+        onclick: () => {
+          const data = store.get();
+          data.diary = data.diary.filter((x) => x.id !== entry.id);
+          store.save(); closeSheet(); rerender(); toast("Eliminado");
+        },
+      }, htmlIcon(ICONS.trash)) : null,
+      h("button", {
+        class: "btn primary block",
+        onclick: () => {
+          const text = textInput.value.trim();
+          if (!text) { toast("Escribe qué has hecho"); return; }
+          const data = store.get();
+          if (isEdit) {
+            Object.assign(entry, { time: timeInput.value || defaultTime, text });
+          } else {
+            data.diary.push({ id: store.uid(), date: todayStr(), time: timeInput.value || defaultTime, text, createdAt: new Date().toISOString() });
+          }
+          store.save(); closeSheet(); rerender();
+          toast(isEdit ? "Actualizado" : "Añadido al diario");
+        },
+      }, isEdit ? "Guardar cambios" : "Añadir"),
+    ]),
+  ]);
+
+  openSheet(content);
 }

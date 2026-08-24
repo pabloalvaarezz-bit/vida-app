@@ -33,19 +33,6 @@ export function dayScore(dateKey) {
     signals.push(1);
   }
 
-  // --- Finanzas: ¿gasto del día por debajo de la media de presupuesto diario?
-  const txToday = d.finance.transactions.filter((t) => t.date === dateKey && t.type === "expense");
-  const totalBudget = d.finance.categories
-    .filter((c) => c.type === "expense" && c.budget)
-    .reduce((s, c) => s + Number(c.budget || 0), 0);
-  if (txToday.length > 0 && totalBudget > 0) {
-    const dailyAllowance = totalBudget / 30;
-    const spentToday = txToday.reduce((s, t) => s + Number(t.amount || 0), 0);
-    const ratio = spentToday / dailyAllowance;
-    // 0 gasto -> +1 ; gasto = allowance -> 0 ; gasto = 2x allowance -> -1
-    signals.push(Math.max(-1, Math.min(1, 1 - ratio)));
-  }
-
   if (signals.length === 0) return null;
   const avg = signals.reduce((a, b) => a + b, 0) / signals.length;
   return Math.max(-1, Math.min(1, avg));
